@@ -1,0 +1,23 @@
+{
+  "name": "Ray - نظام إدارة المخازن والتجهيز",
+  "short_name": "Ray",
+  "description": "Ray - التعبئة والمطابقة مع أوامر الشراء",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./?v=dash",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#191D3E",
+  "theme_color": "#191D3E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "التعبئة", "url": "./?v=pack", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "الداشبورد", "url": "./?v=dash", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "الإدارة", "url": "./?v=admin", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}
