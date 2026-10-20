@@ -18,10 +18,14 @@ html,body{margin:0;height:100%;background:#191D3E;overflow:hidden}
 #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#191D3E;color:#fff;font-family:system-ui,Tahoma,sans-serif;transition:opacity .4s}
 #splash img{width:96px;height:96px}
 #splash.hide{opacity:0;pointer-events:none}
+#bell{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:9;display:none;align-items:center;gap:8px;height:46px;padding:0 16px;border:0;border-radius:23px;background:#F44F64;color:#fff;font:600 15px system-ui,Tahoma,sans-serif;box-shadow:0 6px 18px rgba(25,29,62,.35)}
+#bell.on{display:flex}
+#bell small{font-weight:400;opacity:.85}
 </style>
 </head>
 <body>
 <iframe id="app" title="Ray" allow="clipboard-write"></iframe>
+<button id="bell" type="button">🔔 تفعيل الإشعارات</button>
 <div id="splash"><img src="icon-192.png" alt=""><div>Ray · نظام إدارة مخازن شركة تزويد العراق</div></div>
 <script>
 var APP = 'https://script.google.com/macros/s/AKfycbxDoDZvOjM3PbnUue0STDechP11MBwBCDf5GFSO5rEs0bbjYn4izqcZPDgIv_0KqTcIZw/exec';
@@ -31,6 +35,37 @@ f.src = APP + '?v=' + encodeURIComponent(v);
 f.onload = function () { setTimeout(function () { document.getElementById('splash').classList.add('hide'); }, 600); };
 setTimeout(function () { document.getElementById('splash').classList.add('hide'); }, 8000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+// ---- notifications: new POs, cancellations, finished D.N (works on iPhone when added to the Home Screen)
+var VAPID = null;                                   // public key, fetched from Ray
+fetch(APP + '?vapid=1').then(function (r) { return r.json(); }).then(function (j) { VAPID = j.key || null; }).catch(function () {});
+var bell = document.getElementById('bell'), appWin = null;
+function standalone() { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; }
+function canPush() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function keyBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); s += '==='.slice((s.length + 3) % 4); var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+function sendSub(sub, fresh) { if (appWin && sub) appWin.postMessage({ ray: 'sub', sub: JSON.parse(JSON.stringify(sub)), fresh: !!fresh }, '*'); }
+function current() { return navigator.serviceWorker.ready.then(function (r) { return r.pushManager.getSubscription(); }); }
+bell.onclick = function () {
+  bell.disabled = true; bell.textContent = '…';
+  Notification.requestPermission().then(function (p) {
+    if (p !== 'granted') { bell.textContent = 'الإشعارات مرفوضة — فعّلها من إعدادات الجهاز'; return; }
+    return navigator.serviceWorker.ready.then(function (r) {
+      return r.pushManager.getSubscription().then(function (s) {
+        if (s) return s;
+        var key = VAPID ? Promise.resolve(VAPID) : fetch(APP + '?vapid=1').then(function (x) { return x.json(); }).then(function (j) { return j.key; });
+        return key.then(function (k) { return r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(k) }); });
+      });
+    }).then(function (s) { sendSub(s, true); bell.classList.remove('on'); });
+  }).catch(function (e) { bell.disabled = false; bell.textContent = '🔔 تفعيل الإشعارات'; });
+};
+window.addEventListener('message', function (e) {
+  if (!e.data || !e.data.ray) return;
+  if (e.data.ray === 'hello') {
+    appWin = e.source;
+    if (!canPush()) return;
+    if (Notification.permission === 'granted') current().then(function (s) { if (s) sendSub(s, false); else bell.classList.add('on'); });
+    else if (standalone() && Notification.permission === 'default') bell.classList.add('on');
+  }
+});
 </script>
 </body>
 </html>
