@@ -39,7 +39,17 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 var VAPID = null;                                   // public key, fetched from Ray
 fetch(APP + '?vapid=1').then(function (r) { return r.json(); }).then(function (j) { VAPID = j.key || null; }).catch(function () {});
 var bell = document.getElementById('bell'), appWin = null;
-function standalone() { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; }
+function standalone() { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches; }
+// v31: full screen (no browser bar). The installed app opens full screen by itself; when Ray is opened in a browser tab,
+// the first touch/click inside Ray asks the browser for full screen (Android, iPad, computers).
+function fsOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function goFull() {
+  if (fsOn() || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true) return;
+  var el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!rq) return;
+  try { var p = rq.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+}
+document.addEventListener('pointerdown', goFull, true);
 function canPush() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function keyBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); s += '==='.slice((s.length + 3) % 4); var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
 function sendSub(sub, fresh) { if (appWin && sub) appWin.postMessage({ ray: 'sub', sub: JSON.parse(JSON.stringify(sub)), fresh: !!fresh }, '*'); }
@@ -59,6 +69,7 @@ bell.onclick = function () {
 };
 window.addEventListener('message', function (e) {
   if (!e.data || !e.data.ray) return;
+  if (e.data.ray === 'tap') return goFull();
   if (e.data.ray === 'hello') {
     appWin = e.source;
     if (!canPush()) return;
